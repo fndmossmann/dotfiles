@@ -43,7 +43,7 @@
 # resize-overlay-duration = 4s 200ms
 
 
-theme = synthwave-everything
+theme = catppuccin-mocha
 font-size = 11
 
 copy-on-select = clipboard

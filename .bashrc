@@ -121,4 +121,4 @@ if ! shopt -oq posix; then
   fi
 fi
 export PATH="$PATH:~/.bin/nvim-linux64/bin"
-
+export TERM=xterm-256color
