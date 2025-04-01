@@ -1,5 +1,7 @@
 -- Global config
 vim.g.mapleader= " "
+vim.opt.number = true
+vim.opt.scrolloff = 10
 
 vim.schedule(function()
   vim.opt.clipboard = 'unnamedplus'
@@ -37,13 +39,18 @@ vim.cmd.colorscheme "catppuccin"
 
 -- Configure lualine
 require("lualine").setup {
+	options = {
+		-- theme =
+		section_separators = { left = '', right = '' },
+  		component_separators = { left = '', right = '' }
+	},
 	sections = {
 		lualine_a = { "mode" },
 		lualine_b = { "branch", "diff", "diagnostics" },
-		lualine_c = {},
+		lualine_c = { "filename" },
 		lualine_x = { "" },
-		lualine_y = {},
-		lualine_z = { "hostname" },
+		lualine_y = { "%l:%c", "encoding", "filetype", "lsp_status" },
+		lualine_z = { "os.date('%H:%M')", "hostname" },
 	},
 }
 
