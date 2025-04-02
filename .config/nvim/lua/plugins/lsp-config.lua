@@ -1,10 +1,12 @@
 return {
+	-- Setup mason package manager for LSPs
 	{
 		"williamboman/mason.nvim",
 		config = function()
 			require("mason").setup()
 		end
 	},
+	-- Setup mason-lspconfig
 	{
 		"williamboman/mason-lspconfig.nvim",
 		config = function()
@@ -18,6 +20,7 @@ return {
 		end
 
 	},
+	-- Setup NeoVIM LSPConfig
 	{
 		"neovim/nvim-lspconfig",
 		config = function()
