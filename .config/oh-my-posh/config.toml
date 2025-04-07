@@ -28,6 +28,11 @@ final_space = false
 #    type = 'session'
 #    style = 'plain'
 
+#  [[blocks.segments]]
+#    template = '{{ .Icon }} '
+#    foreground = 'p:os'
+#    type = 'os'
+
   [[blocks.segments]]
     template = ' {{ .Path }}'
     foreground = 'p:mauve'
