@@ -122,3 +122,5 @@ if ! shopt -oq posix; then
 fi
 export PATH="$PATH:~/.bin/nvim-linux64/bin"
 export TERM=xterm-256color
+
+eval "$(oh-my-posh init bash --config $HOME/.config/oh-my-posh/config.toml)"

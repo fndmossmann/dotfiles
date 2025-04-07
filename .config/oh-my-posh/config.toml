@@ -1,0 +1,64 @@
+version = 3
+final_space = false
+
+[upgrade]
+  source = 'cdn'
+  interval = '168h'
+  auto = false
+  notice = false
+
+[palette]
+  red = '#f38ba8'
+  green = '#a6e3a1'
+  blue = '#89B4FA'
+  mauve = '#cba6f7'
+  peach = '#fab387'
+  closer = 'p:os'
+  lavender = '#B4BEFE'
+  os = '#ACB0BE'
+  pink = '#F5C2E7'
+
+[[blocks]]
+  type = 'prompt'
+  alignment = 'left'
+
+#  [[blocks.segments]]
+#    template = '{{ if .SSHSession }}  {{ end }}{{ .UserName }}@{{ .HostName }}'
+#    foreground = 'p:green'
+#    type = 'session'
+#    style = 'plain'
+
+  [[blocks.segments]]
+    template = ' {{ .Path }}'
+    foreground = 'p:mauve'
+    type = 'path'
+    style = 'plain'
+
+    [blocks.segments.properties]
+      folder_icon = '....'
+      home_icon = '~'
+      style = 'agnoster_short'
+
+  [[blocks.segments]]
+    template = " <#89b4fa>(</>{{ .HEAD }}{{if .BranchStatus }} {{ .BranchStatus }}{{ end }}{{ if .Working.Changed }}  {{ .Working.String }}{{ end }}{{ if and (.Working.Changed) (.Staging.Changed) }} |{{ end }}{{ if .Staging.Changed }}  {{ .Staging.String }}{{ end }}{{ if gt .StashCount 0 }}  {{ .StashCount }}{{ end }}<#89b4fa>)</>"
+    foreground = 'p:peach'
+    type = 'git'
+    style = 'plain'
+
+    [blocks.segments.properties]
+      fetch_status = true
+      fetch_upstream_icon = true
+      source = "cli"
+
+  [[blocks.segments]]
+    type = 'status'
+    style = 'plain'
+    foreground_templates = [
+	"{{if eq .Code 0}}p:green{{end}}",
+	"{{if gt .Code 0}}p:red{{end}}"
+    ]
+
+    [blocks.segments.properties]
+      always_enabled = true
+      status_template = '{{ if eq .Code 0 }}➜{{ else }}✗{{ end }}'
+
