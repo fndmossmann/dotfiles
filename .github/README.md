@@ -1,11 +1,11 @@
 # Dotfiles
 
-Dotfiles organized by branch, for each machine.
+Dotfiles managed via bare repository
 
 ## Commands:
 **Inicialize repo:**
 ```
-git init --bare $HOME/.dotfiles -b $HOSTNAME
+git init --bare $HOME/.dotfiles
 ```
 **Create git alias on .bashrc:**
 ```
@@ -23,5 +23,5 @@ dotfiles push
 **Restore:**
 ```
 mkdir -p $HOME/.dotfiles
-git clone --bare -b $HOSTNAME git@github.com:fndmossmann/dotfiles.git $HOME/.dotfiles
+git clone --bare git@github.com:fndmossmann/dotfiles.git $HOME/.dotfiles
 ```
