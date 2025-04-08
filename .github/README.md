@@ -24,4 +24,7 @@ dotfiles push
 ```
 mkdir -p $HOME/.dotfiles
 git clone --bare git@github.com:fndmossmann/dotfiles.git $HOME/.dotfiles
+dotfiles checkout
 ```
+The `dotfiles checkout` will probably fail.
+Remove those files and run the command again.
