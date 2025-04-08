@@ -82,10 +82,7 @@ if ! shopt -oq posix; then
     . /etc/bash_completion
   fi
 fi
-export PATH="$PATH:~/.bin/nvim-linux64/bin"
 export TERM=xterm-256color
-
-eval "$(oh-my-posh init bash --config $HOME/.config/oh-my-posh/config.toml)"
 
 # Init ~/.bashrc.d
 [[ -s "${HOME}/.bashrc.d/init.bash" ]] && source ${HOME}/.bashrc.d/init.bash
