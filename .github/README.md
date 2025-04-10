@@ -28,3 +28,7 @@ dotfiles checkout
 ```
 The `dotfiles checkout` will probably fail.
 Remove those files and run the command again.
+
+**Wallpapers:**
+From: https://github.com/matjam/hd-wallpapers
+Saved them offline (and on this repo) for convenience.
