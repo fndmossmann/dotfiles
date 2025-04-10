@@ -34,7 +34,7 @@ set $term ghostty
 # on the original workspace that the command was run on.
 #set $menu dmenu_path | wmenu | xargs swaymsg exec --
 
-set $menu wofi --show drun
+set $menu wofi --conf $HOME/.config/wofi/config --style $HOME/.config/wofi/themes/dracula.css
 
 include /etc/sway/config-vars.d/*
 
