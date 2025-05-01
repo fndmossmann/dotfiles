@@ -107,6 +107,12 @@ input "type:pointer" {
     # Start your launcher
     bindsym $mod+d exec $menu
 
+    # Start file manager
+    bindsym $mod+Ctrl+f exec thunar
+
+    #Start KeePassXC
+    bindsym $mod+Ctrl+k exec keepassxc
+
     # Drag floating windows by holding down $mod and left mouse button.
     # Resize them with right mouse button + $mod.
     # Despite the name, also works for non-floating windows.
