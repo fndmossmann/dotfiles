@@ -55,6 +55,12 @@ final_space = false
       fetch_upstream_icon = true
       source = "cli"
 
+  [[block.segments]]
+     type = "python"
+     foreground = "#100e23"
+     background = "#906cff"
+     template = "  {{ if .Error }}{{ .Error }}{{ else }}{{ if .Venv }}{{ .Venv }} {{ end }}{{ .Full }}{{ end }}"
+
   [[blocks.segments]]
     type = 'status'
     style = 'plain'
