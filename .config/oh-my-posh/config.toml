@@ -22,17 +22,6 @@ final_space = false
   type = 'prompt'
   alignment = 'left'
 
-#  [[blocks.segments]]
-#    template = '{{ if .SSHSession }}  {{ end }}{{ .UserName }}@{{ .HostName }}'
-#    foreground = 'p:green'
-#    type = 'session'
-#    style = 'plain'
-
-#  [[blocks.segments]]
-#    template = '{{ .Icon }} '
-#    foreground = 'p:os'
-#    type = 'os'
-
   [[blocks.segments]]
     template = ' {{ .Path }}'
     foreground = 'p:mauve'
@@ -58,9 +47,7 @@ final_space = false
   [[blocks.segments]]
      type = 'python'
      foreground = "#4B8BBE"
-#background = "#906cff"
      template = " (<#4B8BBE> </>{{ if .Error }}{{ .Error }}{{ else }}{{ .Full }}{{ end }})<#FFD43B>{{ if .Venv }} ({{ .Venv }}){{ end }}</>"
-#     template = "  {{ .Full }} "
 
      [blocks.segments.properties]
        display_mode = 'context'
