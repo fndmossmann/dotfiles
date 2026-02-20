@@ -43,8 +43,9 @@
 # resize-overlay-duration = 4s 200ms
 
 
-theme = catppuccin-mocha
+theme = Catppuccin Mocha
 font-size = 11
+gtk-titlebar = false
 
 copy-on-select = clipboard
 app-notifications = no-clipboard-copy
