@@ -85,4 +85,4 @@ fi
 export TERM=xterm-256color
 
 # Init ~/.bashrc.d
-[[ -s "${HOME}/.bashrc.d/init.bash" ]] && source ${HOME}/.bashrc.d/init.bash
+[[ -s "${HOME}/.bashrc.d/init" ]] && source ${HOME}/.bashrc.d/init
