@@ -31,9 +31,6 @@ if ! shopt -oq posix; then
 fi
 export TERM=xterm-256color
 
-# Init ~/.bashrc.d
-[[ -s "${HOME}/.bashrc.d/init" ]] && source ${HOME}/.bashrc.d/init
-
 # Source bash customizations
 for file in $HOME/.bashrc.d/*.bash; do
 	source "$file"

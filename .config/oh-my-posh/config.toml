@@ -5,7 +5,7 @@ final_space = false
   source = 'cdn'
   interval = '168h'
   auto = false
-  notice = false
+  notice = true
 
 [palette]
   red = '#f38ba8'
