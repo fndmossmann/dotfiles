@@ -1,0 +1,196 @@
+#!/bin/bash
+
+# ==============================================================================
+# Script: consulta_anatel.sh
+# Descrição: Consulta a base de dados de produtos homologados da ANATEL para
+#            verificar a situação e validade de equipamentos por modelo.
+# Autor: Desenvolvido por Gemini 3.1 Pro (Google), idealizado e estruturado sob
+#        orientações e prompts de fndmossmann.
+# Data de Criação: 17 de Março de 2026
+#
+# CHANGELOG:
+# v1.7: Removida a exibição do horário (00:00:00) na data de validade para deixar a saída mais limpa e focada.
+# v1.6: Adicionado suporte a parâmetros de linha de comando (-f/--force) e verificação prévia de dependências (curl, unzip, awk).
+# v1.5: Implementado suporte ao XDG Base Directory (XDG_STATE_HOME) para armazenamento adequado dos arquivos temporários e de estado.
+# v1.4: Adicionada formatação visual com cores (Verde/Vermelho) para destacar a situação do requerimento e a validade do certificado.
+# v1.3: Adicionada a extração e exibição do campo "Nome do Fabricante".
+# v1.2: Implementada busca por prefixo (wildcard) utilizando substring.
+# v1.1: Adicionado download automático do ZIP da Anatel com verificação mensal de atualização para evitar downloads redundantes, e formatação em blocos de múltiplas linhas.
+# v1.0: Versão inicial. Consulta de modelo exato usando awk em arquivo CSV local.
+# ==============================================================================
+
+# ==============================================================================
+# VERIFICAÇÃO DE DEPENDÊNCIAS
+# ==============================================================================
+for cmd in curl unzip awk; do
+    if ! command -v "$cmd" &> /dev/null; then
+        echo "❌ Erro crítico: O comando '$cmd' não foi encontrado."
+        echo "Por favor, instale-o (ex: apt install $cmd) antes de executar o script."
+        exit 1
+    fi
+done
+
+# ==============================================================================
+# PROCESSAMENTO DE PARÂMETROS
+# ==============================================================================
+FORCAR_DOWNLOAD=false
+MODELO=""
+
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -f|--force)
+            FORCAR_DOWNLOAD=true
+            shift
+            ;;
+        -h|--help)
+            echo "Uso: $0 [-f | --force] <modelo_do_equipamento>"
+            echo "Opções:"
+            echo "  -f, --force    Força o download da base de dados mais recente da Anatel"
+            echo "  -h, --help     Exibe esta mensagem de ajuda"
+            echo "Exemplo: $0 --force FG-40"
+            exit 0
+            ;;
+        -*)
+            echo "❌ Opção desconhecida: $1"
+            echo "Use '$0 --help' para ver as opções disponíveis."
+            exit 1
+            ;;
+        *)
+            MODELO="$1"
+            shift
+            ;;
+    esac
+done
+
+if [ -z "$MODELO" ]; then
+    echo "Uso: $0 [-f | --force] <modelo_do_equipamento>"
+    echo "Exemplo: $0 FG-40"
+    exit 1
+fi
+
+APP_NAME="consulta_anatel"
+URL="https://www.anatel.gov.br/dadosabertos/paineis_de_dados/certificacao_de_produtos/produtos_certificados.zip"
+
+# ==============================================================================
+# CONFIGURAÇÃO DE DIRETÓRIOS (XDG Base Directory Specification)
+# ==============================================================================
+ESTADO_BASE="${XDG_STATE_HOME:-$HOME/.local/state}"
+DIRETORIO_APP="$ESTADO_BASE/$APP_NAME"
+
+mkdir -p "$DIRETORIO_APP"
+
+ZIP_FILE="$DIRETORIO_APP/produtos_certificados.zip"
+CSV_FILE="$DIRETORIO_APP/Produtos_Homologados_Anatel.csv"
+# ==============================================================================
+
+MES_ATUAL=$(date +%Y-%m)
+DATA_HOJE=$(date +%Y%m%d)
+PRECISA_BAIXAR=false
+
+# Lógica de controle de download
+if [ "$FORCAR_DOWNLOAD" = true ]; then
+    PRECISA_BAIXAR=true
+    echo "⚠️ Download forçado ativado via parâmetro."
+elif [ ! -f "$CSV_FILE" ]; then
+    PRECISA_BAIXAR=true
+else
+    MES_ARQUIVO=$(date -r "$CSV_FILE" +%Y-%m)
+    if [ "$MES_ATUAL" != "$MES_ARQUIVO" ]; then
+        PRECISA_BAIXAR=true
+        echo "A base de dados é de um mês anterior ($MES_ARQUIVO). Atualizando para $MES_ATUAL..."
+    fi
+fi
+
+# Realiza o download e extração se necessário
+if [ "$PRECISA_BAIXAR" = true ]; then
+    echo "⏳ Baixando a base de dados da Anatel em '$DIRETORIO_APP'..."
+    
+    curl -s -o "$ZIP_FILE" "$URL"
+    if [ $? -ne 0 ]; then
+        echo "❌ Erro ao baixar o arquivo. Verifique sua ligação à internet."
+        exit 1
+    fi
+
+    echo "📦 Extraindo os dados..."
+    unzip -q -o "$ZIP_FILE" "Produtos_Homologados_Anatel.csv" -d "$DIRETORIO_APP"
+    if [ $? -ne 0 ]; then
+         echo "❌ Erro ao extrair o arquivo CSV. O arquivo ZIP pode estar corrompido."
+         exit 1
+    fi
+
+    rm "$ZIP_FILE"
+    echo "✅ Base de dados atualizada com sucesso!"
+    echo "---------------------------------------------------"
+fi
+
+echo "🔍 Consultando variações do modelo: $MODELO"
+echo "---------------------------------------------------"
+
+# Processa o CSV e aplica as cores
+awk -F';' -v modelo="$MODELO" -v hoje="$DATA_HOJE" '
+    BEGIN {
+        busca = tolower(modelo)
+        tamanho_busca = length(busca)
+        encontrado = 0
+        
+        COR_VERDE = "\033[1;32m"
+        COR_VERMELHA = "\033[1;31m"
+        COR_RESET = "\033[0m"
+    }
+    
+    # Ignora a primeira linha (cabeçalho)
+    NR > 1 {
+        prefixo = substr(tolower($13), 1, tamanho_busca)
+
+        if (prefixo == busca) {
+            encontrado = 1
+            
+            # --- Lógica de cor para Situação do Requerimento ---
+            if ($11 == "Homologação Emitida") {
+                cor_situacao = COR_VERDE
+            } else {
+                cor_situacao = COR_VERMELHA
+            }
+            
+            # --- Lógica de cor para Validade do Certificado ---
+            cor_validade = COR_RESET
+            if ($7 != "") {
+                # Divide pelo espaço para separar data do horário
+                split($7, datetime, " ")
+                data_somente = datetime[1] # Salva apenas a data
+                
+                # Divide a data pelas barras para converter em YYYYMMDD
+                split(data_somente, dateparts, "/")
+                
+                if (length(dateparts[3]) == 4) {
+                    validade_int = dateparts[3] dateparts[2] dateparts[1] + 0
+                    
+                    if (validade_int >= hoje) {
+                        cor_validade = COR_VERDE
+                    } else {
+                        cor_validade = COR_VERMELHA
+                    }
+                }
+                # Substitui a coluna original apenas pela data limpa
+                $7 = data_somente
+            } else {
+                 cor_validade = COR_VERMELHA
+                 $7 = "Não informada"
+            }
+            
+            printf "🖧 Modelo Encontrado  : %s\n", $13
+            printf "🏭 Nome do Fabricante : %s\n", $12
+            printf "📅 Data da Homologação: %s\n", $1
+            printf "⏳ Validade Certificado: %s%s%s\n", cor_validade, $7, COR_RESET
+            printf "🏢 Nome do Solicitante: %s\n", $3
+            printf "📋 Situação Requerimento: %s%s%s\n", cor_situacao, $11, COR_RESET
+            printf "---------------------------------------------------\n"
+        }
+    }
+    
+    END {
+        if (encontrado == 0) {
+            print "❌ Nenhum registo encontrado iniciando com: " modelo
+        }
+    }
+' "$CSV_FILE"

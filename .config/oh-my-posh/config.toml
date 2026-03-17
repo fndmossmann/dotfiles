@@ -62,5 +62,5 @@ final_space = false
 
     [blocks.segments.properties]
       always_enabled = true
-      status_template = '{{ if eq .Code 0 }}➜{{ else }}✗{{ end }}'
+      status_template = '{{ if eq .Code 0 }}➜ {{ else }}✗{{ end }}'
 

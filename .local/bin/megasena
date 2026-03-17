@@ -1,0 +1,235 @@
+#!/bin/bash
+
+# ==============================================================================
+# Script: megasena
+# Descrição: Consulta a API da Caixa para conferir resultados da Mega-Sena,
+#            comparando com jogos salvos localmente e mantendo um histórico.
+# Autoria: Desenvolvido por Gemini 3.1 Pro (Google), idealizado e estruturado 
+#          sob orientações e prompts de fndmossmann.
+# ==============================================================================
+# CHANGELOG:
+# v1.5: Adicionado menu de ajuda (-h/--help) e atualização de autoria.
+# v1.4: Adicionado suporte a parâmetros CLI para consultar concursos específicos 
+#       e realizar apostas avulsas dinâmicas.
+# v1.3: Conversão para script independente e adoção do padrão XDG.
+# v1.2: Implementação de histórico local com controle de duplicidade.
+# v1.1: Suporte a múltiplas linhas no arquivo e validação de Regex.
+# v1.0: Parse de JSON em Bash puro e formatação monetária nativa.
+# ==============================================================================
+
+# 1. Tratamento do Menu de Ajuda (-h / --help)
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+  echo "Uso: megasena [CONCURSO] [DEZENAS_AVULSAS]"
+  echo ""
+  echo "Consulta a API da Caixa para conferir resultados da Mega-Sena."
+  echo ""
+  echo "Modos de Operação:"
+  echo "  megasena                   Consulta o ÚLTIMO concurso e usa as dezenas salvas."
+  echo "  megasena 2980              Consulta o concurso 2980 e usa as dezenas salvas."
+  echo "  megasena 2980 \"01 02...\"   Consulta o concurso 2980 e avalia as dezenas avulsas."
+  echo ""
+  echo "Arquivos Utilizados:"
+  echo "  Apostas:   \${XDG_CONFIG_HOME:-~/.config}/megasena/dezenas.txt"
+  echo "  Histórico: \${XDG_STATE_HOME:-~/.local/state}/megasena/historico.log"
+  echo ""
+  exit 0
+fi
+
+# 2. Configuração de Diretórios (Padrão XDG)
+xdg_config="${XDG_CONFIG_HOME:-$HOME/.config}"
+xdg_state="${XDG_STATE_HOME:-$HOME/.local/state}"
+
+dir_config="$xdg_config/megasena"
+dir_state="$xdg_state/megasena"
+
+arquivo_dezenas="$dir_config/dezenas.txt"
+arquivo_log="$dir_state/historico.log"
+
+mkdir -p "$dir_config"
+mkdir -p "$dir_state"
+
+# 3. Variáveis Globais, Parâmetros e Cores ANSI
+arg_concurso="$1"
+arg_dezenas="$2"
+
+json_data=""
+acumulado=""
+numero=""
+valor_estimado=""
+dezenas=()
+lendo_dezenas=0
+status_teimosinha=""
+
+cor_verde='\e[32m'
+cor_vermelha='\e[31m'
+cor_amarela='\e[33m'
+cor_reset='\e[0m'
+
+# 4. Tratamento de Entrada (Arquivo vs Parâmetro)
+minhas_dezenas=()
+
+if [[ -n "$arg_dezenas" ]]; then
+  read -r -a minhas_dezenas <<< "$arg_dezenas"
+  status_teimosinha="${cor_amarela}Consulta Avulsa (Nenhuma teimosinha vinculada)${cor_reset}"
+else
+  if [[ ! -f "$arquivo_dezenas" ]]; then
+    echo -e "${cor_vermelha}Erro: Arquivo de aposta não encontrado.${cor_reset}"
+    echo "Por favor, crie o arquivo em: $arquivo_dezenas"
+    echo "Formato esperado (1ª linha: concurso limite, 2ª linha: dezenas):"
+    echo "1234"
+    echo "01 02 03 04 05 06"
+    exit 1
+  fi
+
+  concurso_limite=""
+  {
+    read -r concurso_limite
+    read -r -a minhas_dezenas
+  } < "$arquivo_dezenas"
+
+  concurso_limite="${concurso_limite//$'\r'/}"
+
+  if ! [[ "$concurso_limite" =~ ^[0-9]+$ ]]; then
+    echo -e "${cor_vermelha}Erro de formatação no arquivo $arquivo_dezenas.${cor_reset}"
+    echo "A primeira linha DEVE ser apenas o número do concurso limite (ex: 1234)."
+    exit 1
+  fi
+fi
+
+# 5. Requisição à API da Caixa
+if ! command -v curl &> /dev/null; then
+  echo -e "${cor_vermelha}Erro: O comando 'curl' não foi encontrado no sistema.${cor_reset}"
+  exit 1
+fi
+
+api_url="https://servicebus2.caixa.gov.br/portaldeloterias/api/megasena/${arg_concurso}"
+json_data=$(curl -s -m 10 -A "Mozilla/5.0" "$api_url")
+
+if [[ -z "$json_data" || "$json_data" =~ "Erro" || "$json_data" =~ "mensagens" ]]; then
+  echo -e "${cor_vermelha}Erro: Não foi possível obter os dados da API.${cor_reset}"
+  echo "Verifique sua conexão ou se o concurso '$arg_concurso' realmente existe."
+  exit 1
+fi
+
+# 6. Parse do JSON em Bash Puro
+while IFS= read -r linha; do
+  linha="${linha//$'\r'/}"
+  
+  if [[ "$linha" =~ \"acumulado\":\ *([a-zA-Z]+) ]]; then
+    acumulado="${BASH_REMATCH[1]}"
+  fi
+  if [[ "$linha" =~ \"numero\":\ *([0-9]+) ]]; then
+    numero="${BASH_REMATCH[1]}"
+  fi
+  if [[ "$linha" =~ \"valorEstimadoProximoConcurso\":\ *([0-9.]+) ]]; then
+    valor_estimado="${BASH_REMATCH[1]}"
+  fi
+  
+  if [[ "$linha" =~ \"listaDezenas\":\ *\[ ]]; then
+    lendo_dezenas=1
+  fi
+  
+  if [[ $lendo_dezenas -eq 1 ]]; then
+    temp_linha="$linha"
+    
+    while [[ "$temp_linha" =~ \"([0-9]+)\" ]]; do
+      dezenas+=("${BASH_REMATCH[1]}")
+      temp_linha="${temp_linha#*${BASH_REMATCH[0]}}"
+    done
+
+    if [[ "$linha" =~ \] ]]; then
+      lendo_dezenas=0
+    fi
+  fi
+done <<< "$json_data"
+
+# 7. Formatação e Tratamento de Dados
+inteiro="${valor_estimado%.*}"
+decimal="${valor_estimado#*.}"
+
+if [[ "$inteiro" == "$valor_estimado" ]]; then 
+  decimal="00"
+elif [[ ${#decimal} -eq 1 ]]; then 
+  decimal="${decimal}0"
+fi
+
+valor_formatado=""
+while [[ "$inteiro" =~ ^([0-9]+)([0-9]{3})$ ]]; do
+  valor_formatado=".${BASH_REMATCH[2]}$valor_formatado"
+  inteiro="${BASH_REMATCH[1]}"
+done
+valor_formatado="$inteiro$valor_formatado,${decimal}"
+
+if [[ "$acumulado" == "true" ]]; then
+  acumulado="Sim"
+elif [[ "$acumulado" == "false" ]]; then
+  acumulado="Não"
+fi
+
+if [[ ${#dezenas[@]} -eq 0 ]]; then
+  echo -e "${cor_vermelha}Erro: Não foi possível extrair as dezenas. O formato da API pode ter mudado.${cor_reset}"
+  exit 1
+fi
+
+# 8. Lógica da Teimosinha (Somente se leu do arquivo)
+if [[ -z "$arg_dezenas" ]]; then
+  if (( concurso_limite > numero )); then
+    status_teimosinha="${cor_verde}Ativa (Válida até $concurso_limite)${cor_reset}"
+  elif (( concurso_limite == numero )); then
+    status_teimosinha="${cor_amarela}Último Concurso! (Válida até $concurso_limite)${cor_reset}"
+  else
+    status_teimosinha="${cor_vermelha}Expirada (Era válida até $concurso_limite)${cor_reset}"
+  fi
+fi
+
+# 9. Comparação de Dezenas
+resultado_visual=""
+total_acertos=0
+
+for dezena_sorteada in "${dezenas[@]}"; do
+  acertou=0
+  for minha_dezena in "${minhas_dezenas[@]}"; do
+    if [[ "$dezena_sorteada" == "$minha_dezena" ]]; then
+      acertou=1
+      break
+    fi
+  done
+
+  if [[ $acertou -eq 1 ]]; then
+    resultado_visual+="${cor_verde}${dezena_sorteada}${cor_reset} "
+    ((total_acertos++))
+  else
+    resultado_visual+="${cor_vermelha}${dezena_sorteada}${cor_reset} "
+  fi
+done
+
+# 10. Histórico Local (Log)
+ja_registrado=0
+
+if [[ -f "$arquivo_log" ]]; then
+  while IFS= read -r linha_log; do
+    if [[ "$linha_log" =~ "Concurso: $numero " ]]; then
+      ja_registrado=1
+      break
+    fi
+  done < "$arquivo_log"
+fi
+
+if [[ $ja_registrado -eq 0 ]]; then
+  data_atual=""
+  printf -v data_atual '%(%d/%m/%Y %H:%M:%S)T' -1 2>/dev/null || data_atual=$(date '+%d/%m/%Y %H:%M:%S')
+  echo "[$data_atual] Concurso: $numero | Sorteio: ${dezenas[*]} | Meus Acertos: $total_acertos | Acumulado: $acumulado" >> "$arquivo_log"
+fi
+
+# 11. Exibição Final no Terminal
+echo "--- Resultado do Concurso $numero ---"
+echo "Acumulado: $acumulado"
+echo "Valor Estimado (Próximo): R$ $valor_formatado"
+echo -e "Status da Aposta: $status_teimosinha"
+echo "Minhas Dezenas: ${minhas_dezenas[*]}"
+echo -e "Sorteio:        $resultado_visual"
+echo "Total de Acertos: $total_acertos"
+
+if [[ $ja_registrado -eq 0 ]]; then
+  echo -e "${cor_verde}(Resultado salvo em $arquivo_log)${cor_reset}"
+fi
