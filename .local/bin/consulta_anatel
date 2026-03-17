@@ -9,6 +9,8 @@
 # Data de Criação: 17 de Março de 2026
 #
 # CHANGELOG:
+# v1.9: Melhoria no mecanismo de busca para permitir localizar termos em qualquer parte do nome do modelo (wildcard absoluto).
+# v1.8: Aplicada nova formatação visual em blocos (cards) com labels em Ciano e alinhamento ajustado.
 # v1.7: Removida a exibição do horário (00:00:00) na data de validade para deixar a saída mais limpa e focada.
 # v1.6: Adicionado suporte a parâmetros de linha de comando (-f/--force) e verificação prévia de dependências (curl, unzip, awk).
 # v1.5: Implementado suporte ao XDG Base Directory (XDG_STATE_HOME) para armazenamento adequado dos arquivos temporários e de estado.
@@ -124,25 +126,25 @@ if [ "$PRECISA_BAIXAR" = true ]; then
 fi
 
 echo "🔍 Consultando variações do modelo: $MODELO"
-echo "---------------------------------------------------"
+echo ""
 
-# Processa o CSV e aplica as cores
+# Processa o CSV e aplica a busca por substring
 awk -F';' -v modelo="$MODELO" -v hoje="$DATA_HOJE" '
     BEGIN {
         busca = tolower(modelo)
-        tamanho_busca = length(busca)
         encontrado = 0
         
+        # Definição de Cores
         COR_VERDE = "\033[1;32m"
         COR_VERMELHA = "\033[1;31m"
+        COR_CIANO = "\033[1;36m"
         COR_RESET = "\033[0m"
     }
     
     # Ignora a primeira linha (cabeçalho)
     NR > 1 {
-        prefixo = substr(tolower($13), 1, tamanho_busca)
-
-        if (prefixo == busca) {
+        # A função index() retorna uma posição maior que 0 se "busca" for encontrada dentro de $13
+        if (index(tolower($13), busca) > 0) {
             encontrado = 1
             
             # --- Lógica de cor para Situação do Requerimento ---
@@ -155,11 +157,9 @@ awk -F';' -v modelo="$MODELO" -v hoje="$DATA_HOJE" '
             # --- Lógica de cor para Validade do Certificado ---
             cor_validade = COR_RESET
             if ($7 != "") {
-                # Divide pelo espaço para separar data do horário
                 split($7, datetime, " ")
-                data_somente = datetime[1] # Salva apenas a data
+                data_somente = datetime[1] 
                 
-                # Divide a data pelas barras para converter em YYYYMMDD
                 split(data_somente, dateparts, "/")
                 
                 if (length(dateparts[3]) == 4) {
@@ -171,26 +171,27 @@ awk -F';' -v modelo="$MODELO" -v hoje="$DATA_HOJE" '
                         cor_validade = COR_VERMELHA
                     }
                 }
-                # Substitui a coluna original apenas pela data limpa
                 $7 = data_somente
             } else {
                  cor_validade = COR_VERMELHA
                  $7 = "Não informada"
             }
             
-            printf "🖧 Modelo Encontrado  : %s\n", $13
-            printf "🏭 Nome do Fabricante : %s\n", $12
-            printf "📅 Data da Homologação: %s\n", $1
-            printf "⏳ Validade Certificado: %s%s%s\n", cor_validade, $7, COR_RESET
-            printf "🏢 Nome do Solicitante: %s\n", $3
-            printf "📋 Situação Requerimento: %s%s%s\n", cor_situacao, $11, COR_RESET
-            printf "---------------------------------------------------\n"
+            # Exibição formatada em blocos/cards
+            printf "%s======================================================%s\n", COR_CIANO, COR_RESET
+            printf "%s📌 Modelo: %s%s\n", COR_CIANO, COR_RESET, $13
+            printf "%s======================================================%s\n", COR_CIANO, COR_RESET
+            printf "%s🏭 Nome do Fabricante    :%s %s\n", COR_CIANO, COR_RESET, $12
+            printf "%s📅 Data da Homologação   :%s %s\n", COR_CIANO, COR_RESET, $1
+            printf "%s⏳ Validade Certificado  :%s %s%s%s\n", COR_CIANO, COR_RESET, cor_validade, $7, COR_RESET
+            printf "%s🏢 Nome do Solicitante   :%s %s\n", COR_CIANO, COR_RESET, $3
+            printf "%s📋 Situação Requerimento :%s %s%s%s\n\n", COR_CIANO, COR_RESET, cor_situacao, $11, COR_RESET
         }
     }
     
     END {
         if (encontrado == 0) {
-            print "❌ Nenhum registo encontrado iniciando com: " modelo
+            print "❌ Nenhum registro encontrado contendo: " modelo
         }
     }
 ' "$CSV_FILE"
