@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # ==============================================================================
 # Script: megasena
@@ -8,6 +8,7 @@
 #          sob orientações e prompts de fndmossmann.
 # ==============================================================================
 # CHANGELOG:
+# v1.6: Suporte a intervalo de concursos (inicial e final) para teimosinhas.
 # v1.5: Adicionado menu de ajuda (-h/--help) e atualização de autoria.
 # v1.4: Adicionado suporte a parâmetros CLI para consultar concursos específicos 
 #       e realizar apostas avulsas dinâmicas.
@@ -75,23 +76,26 @@ else
   if [[ ! -f "$arquivo_dezenas" ]]; then
     echo -e "${cor_vermelha}Erro: Arquivo de aposta não encontrado.${cor_reset}"
     echo "Por favor, crie o arquivo em: $arquivo_dezenas"
-    echo "Formato esperado (1ª linha: concurso limite, 2ª linha: dezenas):"
-    echo "1234"
+    echo "Formato esperado (1ª linha: concurso inicial e final, 2ª linha: dezenas):"
+    echo "1234 1240"
     echo "01 02 03 04 05 06"
     exit 1
   fi
 
-  concurso_limite=""
+  concurso_inicial=""
+  concurso_final=""
   {
-    read -r concurso_limite
+    read -r concurso_inicial concurso_final
     read -r -a minhas_dezenas
   } < "$arquivo_dezenas"
 
-  concurso_limite="${concurso_limite//$'\r'/}"
+  concurso_inicial="${concurso_inicial//$'\r'/}"
+  concurso_final="${concurso_final//$'\r'/}"
 
-  if ! [[ "$concurso_limite" =~ ^[0-9]+$ ]]; then
+  # Valida se os dois valores extraídos são puramente números
+  if ! [[ "$concurso_inicial" =~ ^[0-9]+$ ]] || ! [[ "$concurso_final" =~ ^[0-9]+$ ]]; then
     echo -e "${cor_vermelha}Erro de formatação no arquivo $arquivo_dezenas.${cor_reset}"
-    echo "A primeira linha DEVE ser apenas o número do concurso limite (ex: 1234)."
+    echo "A primeira linha DEVE conter o concurso INICIAL e o FINAL separados por espaço (ex: 1234 1240)."
     exit 1
   fi
 fi
@@ -173,12 +177,14 @@ fi
 
 # 8. Lógica da Teimosinha (Somente se leu do arquivo)
 if [[ -z "$arg_dezenas" ]]; then
-  if (( concurso_limite > numero )); then
-    status_teimosinha="${cor_verde}Ativa (Válida até $concurso_limite)${cor_reset}"
-  elif (( concurso_limite == numero )); then
-    status_teimosinha="${cor_amarela}Último Concurso! (Válida até $concurso_limite)${cor_reset}"
+  if (( numero < concurso_inicial )); then
+    status_teimosinha="${cor_amarela}Futura (Aposta inicia no concurso $concurso_inicial e vai até $concurso_final)${cor_reset}"
+  elif (( numero >= concurso_inicial && numero < concurso_final )); then
+    status_teimosinha="${cor_verde}Ativa (Válida do concurso $concurso_inicial até $concurso_final)${cor_reset}"
+  elif (( numero == concurso_final )); then
+    status_teimosinha="${cor_amarela}Último Concurso! (Válida do concurso $concurso_inicial até $concurso_final)${cor_reset}"
   else
-    status_teimosinha="${cor_vermelha}Expirada (Era válida até $concurso_limite)${cor_reset}"
+    status_teimosinha="${cor_vermelha}Expirada (Era válida do concurso $concurso_inicial até $concurso_final)${cor_reset}"
   fi
 fi
 
